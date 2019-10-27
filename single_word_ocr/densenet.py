@@ -22,9 +22,9 @@ class DenseNet(object):
 
     if self.is_training:
       print("feautres =====> ", self.features)
-      self.center_loss, _ = self.center_loss(self.features, self.labels, self.center_loss_alpha, self.num_classes)
-      self.softmax_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels))
-      self.loss = self.softmax_loss + self.center_loss
+      #self.center_loss, _ = self.center_loss(self.features, self.labels, self.center_loss_alpha, self.num_classes)
+      #self.softmax_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.labels))
+      self.loss = self.softmax_loss 
 
     self.predict_prob = tf.nn.softmax(self.logits, name='prob' )
     print("predict_prob====>", self.predict_prob)
