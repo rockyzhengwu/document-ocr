@@ -44,7 +44,7 @@ class UnetModel(object):
         self._loss()
 
   def _build_graph(self, is_training):
-    with tf.variable_scope('generator') as scope:
+    with tf.variable_scope('encoder') as scope:
       block1 = down_block(self.image, 64, 1, is_training)
       block2 = down_block(block1, 128, 2, is_training)
       block3 = down_block(block2, 256, 3, is_training)
@@ -52,12 +52,13 @@ class UnetModel(object):
       block5 = down_block(block4, 512, 5, is_training)
       block6 = down_block(block5, 512, 6, is_training)
       block7 = down_block(block6, 512, 7, is_training)
-
       center = down_block(block7, 512, 8, is_training)
+
+    with tf.variable_scope('decoder') as scope:
       center = tf.layers.conv2d_transpose(center, 512, kernel_size=[4,4], strides=2,
                                           activation=tf.nn.relu, padding="SAME", name='g_center')
-      center_norm = tf.layers.batch_normalization(center, training=is_training, name='g_center_norml')
 
+      center_norm = tf.layers.batch_normalization(center, training=is_training, name='g_center_norml')
       upblock7 = up_block(block7, center_norm, 512, 7, is_training)
       upblock6 = up_block(block6, upblock7, 512, 6, is_training)
       upblock5 = up_block(block5, upblock6, 512, 4, is_training)
@@ -66,13 +67,14 @@ class UnetModel(object):
       upblock2 = up_block(block2, upblock3, 64, 1, is_training)
 
       out = tf.concat([block1, upblock2], axis=-1)
-      out = tf.layers.conv2d_transpose(out, filters=self.num_class, kernel_size=(4, 4), 
-          strides=2, padding="SAME", activation=None, name='g_out')
+      out = tf.layers.conv2d_transpose(out, filters=self.num_class, kernel_size=(4, 4),
+        strides=2, padding="SAME", activation=None, name='g_out')
       self.logits = tf.identity(out, name='logits')
 
-      if is_training:
-        # auxiliary decoder
-        decoder_scope = 'auxiliary'
+    if is_training:
+      # auxiliary decoder
+      decoder_scope = 'auxiliary'
+      with tf.variable_scope(decoder_scope) as scope:
         aux_upblock7 = up_block(block7, center_norm, 512, 7, is_training, decoder_scope)
         aux_upblock6 = up_block(block6, aux_upblock7, 512, 6, is_training, decoder_scope)
         aux_upblock5 = up_block(block5, aux_upblock6, 512, 4, is_training, decoder_scope)
@@ -80,7 +82,7 @@ class UnetModel(object):
         aux_upblock3 = up_block(block3, aux_upblock4, 128, 2, is_training, decoder_scope)
         aux_upblock2 = up_block(block2, aux_upblock3, 64, 1, is_training, decoder_scope)
         aux_out = tf.concat([block1, aux_upblock2], axis=-1)
-        self.aux_out = tf.layers.conv2d_transpose(aux_out, filters=3, kernel_size=(4, 4), 
+        self.aux_out = tf.layers.conv2d_transpose(aux_out, filters=3, kernel_size=(4, 4),
             strides=2, padding="SAME", activation=None, name='aux_g_out')
 
           

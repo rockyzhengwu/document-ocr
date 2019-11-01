@@ -7,7 +7,6 @@ import numpy as np
 
 class GeneratorEnqueuer():
   def __init__(self, generator,wait_time=0.05, random_seed=None):
-
     self.wait_time = wait_time
     self._generator = generator
     self._threads = []
@@ -21,7 +20,8 @@ class GeneratorEnqueuer():
         try:
           generator_output = next(self._generator)
           self.queue.put(generator_output)
-        except Exception:
+        except Exception as e:
+          print(e)
           self._stop_event.set()
           raise
     try:

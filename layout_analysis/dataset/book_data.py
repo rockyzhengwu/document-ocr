@@ -16,8 +16,6 @@ IMAGE_WIDTH=768
 IMAGE_HEIGHT=1024
 NUM_CLASS=3
 
-LABEL_NAMES = ["text_line", 'table', 'image']
-
 
 def load_image_list(image_data_path):
   image_path_list = []
@@ -80,14 +78,16 @@ def fill_image(label_image, boxs, label_value, w_factor, h_factor):
   return label_image
 
 
-def data_generator(list_path, image_dir batch_size, mode='train'):
+def data_generator(list_path, image_dir, batch_size, mode='train'):
   label_file_list = load_image_list(list_path)
   print("example size:", len(label_file_list))
   image_batch = []
   label_batch = []
+  xml_path_batch = []
   while True:
     random.shuffle(label_file_list)
     for xml_path in label_file_list:
+      xml_path = os.path.join(image_dir, xml_path)
       #if 'book' not in image_path:
       #    continue
       label_data=load_label_data(xml_path)
@@ -104,47 +104,49 @@ def data_generator(list_path, image_dir batch_size, mode='train'):
       image = cv2.resize(image, (IMAGE_WIDTH, IMAGE_HEIGHT))
 
       label_image = np.zeros((IMAGE_HEIGHT, IMAGE_WIDTH, 1))
-      images= label_data['images']
-      label_image = fill_image(label_image, images , 1, w_factor, h_factor)
+      # images= label_data['images']
+      # label_image = fill_image(label_image, images , 1, w_factor, h_factor)
 
       texts = label_data['texts']
 
-      label_image = fill_image(label_image, texts, 2, w_factor, h_factor)
-      if mode == 'train':
-        image, _ = image_augment.augment_with_segmap(image, label_image, NUM_CLASS)
+      label_image = fill_image(label_image, texts, 1, w_factor, h_factor)
+      # if mode == 'train':
+      #   image, _ = image_augment.augment_with_segmap(image, label_image, NUM_CLASS)
       if len(label_image.shape) == 3:
         label_image = label_image.reshape((IMAGE_HEIGHT, IMAGE_WIDTH))
       # todo image augmentation, 图像增强
       label_batch.append(label_image)
       image = image / 255.0
       image_batch.append(image)
+      xml_path_batch.append(xml_path)
       if len(image_batch) == batch_size:
-        yield image_batch, label_batch
+        yield image_batch, label_batch, xml_path_batch
         image_batch = []
         label_batch = []
+        xml_path_batch = []
     if mode!='train':
       break
 
 
-def get_batch(list_dir, image_dir, batch_size, mode='train', workers=1, max_queue_size=256):
-  try:
-    enqueuer = data_util.GeneratorEnqueuer(data_generator(list_dir, image_dir, batch_size, mode))
-    enqueuer.start(max_queue_size=max_queue_size, workers=workers)
-    enqueuer.is_running()
+def get_batch(list_dir, image_dir, batch_size, mode='train', workers=1, max_queue_size=32):
+  enqueuer = data_util.GeneratorEnqueuer(data_generator(list_dir, image_dir, batch_size, mode))
+  enqueuer.start(max_queue_size=max_queue_size, workers=workers)
+  enqueuer.is_running()
+  generator_output = None
+  while True:
+    while enqueuer.is_running():
+      if not enqueuer.queue.empty():
+        generator_output = enqueuer.queue.get()
+        break
+      else:
+        time.sleep(0.01)
+    yield generator_output
     generator_output = None
-    while True:
-      while enqueuer.is_running():
-        if not enqueuer.queue.empty():
-          generator_output = enqueuer.queue.get()
-          break
-        else:
-          time.sleep(0.01)
-      yield generator_output
-      generator_output = None
-  except Exception as e:
-    print('load data error: ', e)
-  finally:
-    if enqueuer is not None:
-        enqueuer.stop()
 
-
+if __name__== "__main__":
+  list_dir = '/data/zhengwu_workspace/ocr/dataset/document_layout/books/test.list'
+  image_dir = '/data/zhengwu_workspace/ocr/dataset/document_layout/books'
+  batch_size = 4
+  for batch in get_batch(list_dir, image_dir, batch_size):
+    print(batch)
+    exit(0)

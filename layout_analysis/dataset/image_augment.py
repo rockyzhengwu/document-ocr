@@ -3,10 +3,7 @@
 #author: wu.zheng midday.me
 
 from imgaug import augmenters as iaa
-import cv2
-import imgaug as ia
-from imgaug.augmentables.segmaps import SegmentationMapOnImage
-from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
+from imgaug.augmentables.segmaps import SegmentationMapsOnImage
 import random
 
 seq = iaa.SomeOf((1, 4), [
@@ -20,7 +17,7 @@ seq = iaa.SomeOf((1, 4), [
 def augment_with_segmap(image, segmap, num_classes):
   if random.random() < 0.3:
     return image, segmap
-  segmap = SegmentationMapOnImage(segmap, shape=image.shape, nb_classes=num_classes)
+  segmap = SegmentationMapsOnImage(segmap, shape=image.shape, nb_classes=num_classes)
   image_aug, segmap_aug = seq(image=image, segmentation_maps=segmap)
   return image_aug, None
 
